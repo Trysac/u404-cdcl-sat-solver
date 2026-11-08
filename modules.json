@@ -1,0 +1,156 @@
+{
+  "schema": "modules.v1",
+  "project": "cdcl-sat-solver",
+  "lang": "python",
+  "interfaces": [
+    {
+      "path": "interfaces/dimacs.py",
+      "content": "\"\"\"DIMACS CNF format parsing, serialization, and model verification.\"\"\"\n\n\nclass SolverError(Exception):\n    \"\"\"Base exception for solver and DIMACS parsing errors.\"\"\"\n\n    def __init__(self, message: str, code: str) -> None:\n        super().__init__(message)\n        self.code = code\n\n\ndef parse_dimacs(\n    text: str,\n    *,\n    max_bytes: int = 10_000_000,\n) -> tuple[int, list[list[int]]]:\n    \"\"\"Parse a DIMACS CNF formatted string into variable count and clause list.\"\"\"\n    ...\n\n\ndef dump_dimacs(num_vars: int, clauses: list[list[int]]) -> str:\n    \"\"\"Serialize variable count and clauses into a DIMACS CNF formatted string.\"\"\"\n    ...\n\n\ndef verify_model(clauses: list[list[int]], model: dict[int, bool]) -> bool:\n    \"\"\"Verify that every clause in clauses is satisfied by the assignment model.\"\"\"\n    ...\n",
+      "sha256": "1bf77a842b250277c51e2ca5b502e99cad237f84c1142082148bba88a02b490f"
+    },
+    {
+      "path": "interfaces/proof.py",
+      "content": "\"\"\"DRAT proof emission and Reverse Unit Propagation (RUP) checking.\"\"\"\n\nfrom typing import Protocol\n\n\nclass IProofTracer(Protocol):\n    \"\"\"Protocol for logging DRAT proofs.\"\"\"\n\n    def emit_clause(self, clause: list[int]) -> None:\n        \"\"\"Emit a learned clause to the DRAT proof.\"\"\"\n        ...\n\n    def emit_deletion(self, clause: list[int]) -> None:\n        \"\"\"Emit a clause deletion line starting with 'd'.\"\"\"\n        ...\n\n    def close(self) -> None:\n        \"\"\"Finalize and close the proof output stream.\"\"\"\n        ...\n\n\ndef verify_rup_proof(\n    clauses: list[list[int]],\n    proof_path: str,\n) -> bool:\n    \"\"\"Verify that a DRAT proof on clauses is accepted by reverse unit propagation.\"\"\"\n    ...\n",
+      "sha256": "76fdee384309d8feda94c2e8e7acf94ab066eadfd39cccc6c2a9726859b148f5"
+    },
+    {
+      "path": "interfaces/solver.py",
+      "content": "\"\"\"CDCL SAT solver interface and result types.\"\"\"\n\nimport time\nfrom collections.abc import Callable\nfrom typing import Any, Literal, NamedTuple\n\n\nclass SolveResult(NamedTuple):\n    \"\"\"Result of a CDCL solve invocation.\"\"\"\n\n    status: Literal[\"SAT\", \"UNSAT\", \"UNKNOWN\"]\n    model: dict[int, bool] | None\n    assumptions_core: list[int]\n    conflicts: int\n    decisions: int\n\n\nclass Solver:\n    \"\"\"Pure-Python CDCL SAT solver.\"\"\"\n\n    def __init__(\n        self,\n        num_vars: int = 0,\n        *,\n        on_event: Callable[[dict[str, Any]], None] | None = None,\n    ) -> None:\n        \"\"\"Initialize the solver with an optional initial variable count and event callback.\"\"\"\n        ...\n\n    def add_clause(self, clause: list[int]) -> None:\n        \"\"\"Add a clause to the solver formula.\"\"\"\n        ...\n\n    def solve(\n        self,\n        assumptions: list[int] | None = None,\n        *,\n        time_limit_sec: float | None = None,\n        proof_path: str | None = None,\n        clock: Callable[[], float] = time.monotonic,\n    ) -> SolveResult:\n        \"\"\"Solve formula with optional assumptions, timeout, and proof logging.\"\"\"\n        ...\n",
+      "sha256": "8a472ab68b5e1cc7e34d6de868726356e259000089d900161fd45c80c8cf9d48"
+    },
+    {
+      "path": "interfaces/cli.py",
+      "content": "\"\"\"Command-line interface entry point for satpy.\"\"\"\n\n\ndef main(argv: list[str] | None = None) -> int:\n    \"\"\"CLI entry point for satpy solving DIMACS files.\n\n    Exit codes:\n      10: SAT\n      20: UNSAT\n       0: UNKNOWN / timeout\n       2: IO, parse, or argument error\n    \"\"\"\n    ...\n",
+      "sha256": "df5421d32197b9e40a795e9fe23af7ea707477da9dd5546e68f96aa73fbcb3a0"
+    }
+  ],
+  "modules": [
+    {
+      "id": "dimacs",
+      "goal": "Parse DIMACS CNF format files with byte limits, dump clauses to DIMACS format, and verify assignments against clause lists.",
+      "acceptance": [
+        "WHEN parse_dimacs is called with 'p cnf 3 2\\n1 -2 0\\n2 3 0\\n' THEN it returns num_vars=3 and clauses=[[1, -2], [2, 3]]",
+        "IF parse_dimacs input exceeds max_bytes of 10000000 THEN it raises SolverError with code 'input_too_large'"
+      ],
+      "owns": [
+        "src/cdcl_dimacs/",
+        "tests/dimacs/"
+      ],
+      "implements": [
+        "interfaces/dimacs.py"
+      ],
+      "consumes": [],
+      "depends_on": []
+    },
+    {
+      "id": "proof",
+      "goal": "Emit DRAT proof lines for learned clauses and deletions, and verify UNSAT DRAT proofs using reverse unit propagation.",
+      "acceptance": [
+        "WHEN proof_path is provided for an UNSAT problem THEN the emitted DRAT file terminates with '0' as its final non-empty line",
+        "WHEN an UNSAT formula is solved with proof_path set THEN a reverse-unit-propagation checker in the tests accepts every added clause of the proof up to the empty clause '0'"
+      ],
+      "owns": [
+        "src/cdcl_proof/",
+        "tests/proof/"
+      ],
+      "implements": [
+        "interfaces/proof.py"
+      ],
+      "consumes": [],
+      "depends_on": []
+    },
+    {
+      "id": "engine",
+      "goal": "Core CDCL SAT solver featuring 2-watched-literals unit propagation, 1-UIP conflict analysis, Luby restarts, VSIDS variable heuristic, phase saving, and incremental assumptions with core extraction.",
+      "acceptance": [
+        "WHEN solve is called on clauses [[1, 2], [-1, 2], [1, -2], [-1, -2]] THEN status is 'UNSAT', model is None, and assumptions_core is []",
+        "WHEN solve is called on clauses [[1, 2], [-1, 2]] THEN status is 'SAT' and verify_model(clauses, model) returns True",
+        "WHEN solve is called with assumptions [1] on clauses [[-1]] THEN status is 'UNSAT' and assumptions_core is [1]",
+        "WHEN a SAT formula receives an added clause satisfied by its existing model THEN status remains 'SAT' with verify_model returning True"
+      ],
+      "owns": [
+        "src/cdcl_engine/",
+        "tests/engine/"
+      ],
+      "implements": [
+        "interfaces/solver.py"
+      ],
+      "consumes": [
+        "interfaces/dimacs.py",
+        "interfaces/proof.py"
+      ],
+      "depends_on": [
+        "dimacs",
+        "proof"
+      ]
+    },
+    {
+      "id": "facade",
+      "goal": "Package public API surface (Solver, SolveResult, parse_dimacs, dump_dimacs, verify_model) and CLI entry point satpy (__main__.py) with exit code and error handling.",
+      "acceptance": [
+        "WHEN CLI is invoked with invalid arguments THEN main returns exit code 2 and outputs an error to stderr"
+      ],
+      "owns": [
+        "src/cdcl_sat_solver/",
+        "tests/facade/",
+        "tests/cli/"
+      ],
+      "implements": [
+        "interfaces/cli.py"
+      ],
+      "consumes": [
+        "interfaces/dimacs.py",
+        "interfaces/proof.py",
+        "interfaces/solver.py"
+      ],
+      "depends_on": [
+        "dimacs",
+        "engine",
+        "proof"
+      ]
+    },
+    {
+      "id": "oracle",
+      "goal": "Property-based testing and truth-table brute-force oracle verification over 300 seeded random formulas to ensure 100% solver correctness and model validity.",
+      "acceptance": [
+        "WHEN 300 seeded random 3-SAT formulas with 10 variables are solved THEN every verdict equals a brute-force truth-table oracle in the tests and every SAT model satisfies the formula"
+      ],
+      "owns": [
+        "tests/oracle/"
+      ],
+      "implements": [],
+      "consumes": [
+        "interfaces/dimacs.py",
+        "interfaces/solver.py"
+      ],
+      "depends_on": [
+        "dimacs",
+        "engine"
+      ]
+    },
+    {
+      "id": "conformance",
+      "goal": "CI conformance suite benchmarking SATLIB benchmarks (uf20..uf100, uuf50..uuf100), running drat-trim verification, and validating 2000 random formulas against PySAT oracle.",
+      "acceptance": [
+        "WHEN the CI conformance job runs SATLIB uf20, uf50, uf75, uf100, uuf50, uuf75 and uuf100 THEN 100 percent of verdicts are correct, every UNSAT proof is accepted by drat-trim, and 2000 random instances agree with the PySAT oracle"
+      ],
+      "owns": [
+        "tests/conformance/",
+        "ci/"
+      ],
+      "implements": [],
+      "consumes": [
+        "interfaces/cli.py",
+        "interfaces/dimacs.py",
+        "interfaces/proof.py",
+        "interfaces/solver.py"
+      ],
+      "depends_on": [
+        "dimacs",
+        "engine",
+        "facade",
+        "proof"
+      ]
+    }
+  ]
+}
