@@ -54,3 +54,17 @@ Total: $0.2645. Prices: Anthropic list prices.
 | fix-4 | gemini-3.8-flash | no | 50764 | 1271 | 0 | 235588 | 0.0605 |
 
 Total: $0.1546. Prices: Anthropic list prices.
+
+## Factory run cdcl-sat-solver-engine (measured from API usage)
+
+| Phase | Model | Batch | Input | Output | Cache write | Cache read | Cost (USD) |
+|---|---|---|---|---|---|---|---|
+| generation | gemini-3.8-flash | yes | 8905 | 46473 | 0 | 0 | 0.0905 |
+| fix-1 | gemini-3.8-flash | no | 44345 | 664 | 0 | 206363 | 0.0512 |
+| fix-2 | gemini-3.8-flash | no | 33075 | 240 | 0 | 36859 | 0.0285 |
+| fix-3 | gemini-3.8-flash | no | 72547 | 1209 | 0 | 451540 | 0.0928 |
+| audit | gemini-3.1-flash-lite | no | 96878 | 743 | 0 | 662594 | 0.0419 |
+| fix-4 | gemini-3.8-flash | no | 102785 | 1247 | 0 | 1127581 | 0.1663 |
+| fix-5 | gemini-3.8-flash | no | 29244 | 771 | 0 | 72085 | 0.0302 |
+
+Total: $0.5014. Prices: Anthropic list prices.
